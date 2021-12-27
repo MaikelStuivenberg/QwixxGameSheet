@@ -1,11 +1,14 @@
 import 'dart:convert';
 
+import 'package:assets_audio_player/assets_audio_player.dart';
 import 'package:flutter/material.dart';
 import 'package:qwixx_scoreboard/settings_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'constants/settings.dart';
+
 class GamePage extends StatefulWidget {
-  GamePage({Key key}) : super(key: key);
+  const GamePage({required Key key}) : super(key: key);
 
   @override
   _GamePageState createState() => _GamePageState();
@@ -29,17 +32,18 @@ class _GamePageState extends State<GamePage> {
   List<bool> rowsLocked = [false, false, false, false];
   List<Color> rowsColors = [
     Colors.red,
-    Color.fromARGB(255, 245, 200, 66),
-    Color.fromARGB(255, 0, 125, 0),
-    Color.fromARGB(255, 41, 72, 143)
+    const Color.fromARGB(255, 245, 200, 66),
+    const Color.fromARGB(255, 0, 125, 0),
+    const Color.fromARGB(255, 41, 72, 143)
   ];
 
   // Settings (with default values, async loaded)
   var showScore = true;
   var darkMode = false;
   var highscore = true;
+  var sounds = false;
 
-  int currentHighscore; // Initialized when existing in memory
+  int? currentHighscore; // Initialized when existing in memory
 
   @override
   void initState() {
@@ -52,92 +56,124 @@ class _GamePageState extends State<GamePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: darkMode
-          ? Color.fromARGB(255, 30, 30, 30)
-          : Color.fromARGB(255, 240, 240, 240),
+          ? const Color.fromARGB(255, 30, 30, 30)
+          : const Color.fromARGB(255, 240, 240, 240),
       body: Container(
           width: double.infinity,
-          margin: EdgeInsets.all(15),
+          margin: const EdgeInsets.fromLTRB(15, 5, 15, 5),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              getHighscoreRow(),
-              getGameRow(1, redNumbers, choosenRed),
-              getGameRow(2, yellowNumbers, choosenYellow),
-              getGameRow(3, greenNumbers, choosenGreen),
-              getGameRow(4, blueNumbers, choosenBlue),
-              getLastRow()
+              getHeader(),
+              Column(
+                children: [
+                  getGameRow(1, redNumbers, choosenRed),
+                  getGameRow(2, yellowNumbers, choosenYellow),
+                  getGameRow(3, greenNumbers, choosenGreen),
+                  getGameRow(4, blueNumbers, choosenBlue)
+                ],
+              ),
+              getBottom()
             ],
           )),
     );
   }
 
-  Widget getHighscoreRow() {
-    return Container(
-      padding: EdgeInsets.only(bottom: 15),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: (currentHighscore != null && highscore)
-            ? [
-                Container(
-                  child: Icon(Icons.emoji_events),
-                  padding: EdgeInsets.only(right: 10),
+  Widget getHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          flex: 1,
+          child: Container(),
+        ),
+        Expanded(
+          flex: 1,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: (currentHighscore != null && highscore)
+                ? [
+                    Container(
+                      child: Icon(
+                        Icons.emoji_events,
+                        color: darkMode ? Colors.white : Colors.black,
+                      ),
+                      padding: const EdgeInsets.only(right: 10),
+                    ),
+                    Text(
+                      "Highscore: " + currentHighscore.toString(),
+                      style: TextStyle(
+                          fontSize: 16,
+                          color: darkMode ? Colors.white : Colors.black),
+                    ),
+                  ]
+                : [],
+          ),
+        ),
+        Expanded(
+          flex: 1,
+          child: Row(
+            children: [
+              const Spacer(),
+              ElevatedButton(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: const [
+                    Icon(Icons.settings, color: Colors.white),
+                    Text(
+                      "Settings",
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ],
                 ),
-                Text(
-                  "Highscore: " + currentHighscore.toString(),
-                  style: TextStyle(
-                      fontSize: 16,
-                      color: darkMode ? Colors.white : Colors.black),
-                ),
-              ]
-            : [],
-      ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => SettingsPage(key: GlobalKey())),
+                  ).then((value) => {
+                        if (value == 'reset') resetGame(),
+                        loadSettings(),
+                      });
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget getLastRow() {
-    return Container(
-      margin: EdgeInsets.fromLTRB(0, 15, 0, 0),
-      //decoration: BoxDecoration(color: ),
-      child: Row(
-        children: [
-          Row(
-            children: [
-              getPointsColumn(rowsColors[0], choosenRed),
-              getTextColumn("+"),
-              getPointsColumn(rowsColors[1], choosenYellow),
-              getTextColumn("+"),
-              getPointsColumn(rowsColors[2], choosenGreen),
-              getTextColumn("+"),
-              getPointsColumn(rowsColors[3], choosenBlue),
-              getTextColumn("-"),
-              getMinPoints(),
-              getTextColumn("="),
-              getTotalPointsColumn()
-            ],
-          ),
-          IconButton(
-            icon: Icon(Icons.settings,
-                color: darkMode ? Colors.white : Colors.black),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => SettingsPage()),
-              ).then((value) => {
-                    if (value == 'reset') resetGame(),
-                    loadSettings(),
-                  });
-            },
-          ),
-          getMissedThrowRow(),
-        ],
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      ),
+  Widget getBottom() {
+    return Row(
+      children: [
+        Row(
+          children: [
+            getPointsColumn(rowsColors[0], choosenRed),
+            getTextColumn("+"),
+            getPointsColumn(rowsColors[1], choosenYellow),
+            getTextColumn("+"),
+            getPointsColumn(rowsColors[2], choosenGreen),
+            getTextColumn("+"),
+            getPointsColumn(rowsColors[3], choosenBlue),
+            getTextColumn("-"),
+            getMinPoints(),
+            getTextColumn("="),
+            getTotalPointsColumn()
+          ],
+        ),
+        getMissedThrowRow(),
+      ],
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
     );
   }
 
   Widget getMissedThrowRow() {
     List<Widget> columns = [];
 
-    for (int i = 1; i <= 4; i++) columns.add(getMissedThrowColumn(i));
+    for (int i = 1; i <= 4; i++) {
+      columns.add(getMissedThrowColumn(i));
+    }
 
     return Row(
       children: columns,
@@ -150,15 +186,15 @@ class _GamePageState extends State<GamePage> {
         width: 50,
         height: 40,
         margin: position == 1
-            ? EdgeInsets.all(0)
-            : EdgeInsets.fromLTRB(10, 0, 0, 0),
+            ? const EdgeInsets.all(0)
+            : const EdgeInsets.fromLTRB(10, 0, 0, 0),
         decoration: BoxDecoration(
           border: Border.all(
               color: darkMode ? Colors.white : Colors.black, width: 1.25),
-          borderRadius: BorderRadius.all(Radius.circular(5)),
+          borderRadius: const BorderRadius.all(Radius.circular(5)),
           color: darkMode
-              ? Color.fromARGB(225, 30, 30, 30)
-              : Color.fromARGB(225, 255, 255, 255),
+              ? const Color.fromARGB(225, 30, 30, 30)
+              : const Color.fromARGB(225, 255, 255, 255),
         ),
         child: Center(
           child: Text(
@@ -177,7 +213,8 @@ class _GamePageState extends State<GamePage> {
           if (missedThrows < position - 1) return;
 
           // When current item is already clicked, remove this missed throw
-          if (missedThrows == position) {
+          if (missedThrows >= position) {
+            playClickSound();
             missedThrows -= 1;
             return;
           }
@@ -194,6 +231,7 @@ class _GamePageState extends State<GamePage> {
           }
 
           saveCurrentView();
+          playClickSound();
         });
       },
     );
@@ -202,7 +240,7 @@ class _GamePageState extends State<GamePage> {
   Widget getTextColumn(String text) {
     return Container(
       height: 40,
-      margin: EdgeInsets.fromLTRB(5, 0, 5, 0),
+      margin: const EdgeInsets.fromLTRB(5, 0, 5, 0),
       child: Center(
         child: Text(
           text,
@@ -215,26 +253,26 @@ class _GamePageState extends State<GamePage> {
 
   Widget getPointsColumn(Color color, List<int> choosenNumbers) {
     return Container(
-      width: 50,
-      height: 40,
+      width: 40,
+      height: 30,
       decoration: BoxDecoration(
         border: Border.all(color: color, width: 1.25),
-        borderRadius: BorderRadius.all(Radius.circular(5)),
+        borderRadius: const BorderRadius.all(Radius.circular(5)),
         color: darkMode
-            ? Color.fromARGB(225, 30, 30, 30)
-            : Color.fromARGB(225, 255, 255, 255),
+            ? const Color.fromARGB(225, 30, 30, 30)
+            : const Color.fromARGB(225, 255, 255, 255),
       ),
       child: Center(
         child: Text(
           showScore
-              ? choosenNumbers.length == 0
+              ? choosenNumbers.isEmpty
                   ? "0"
                   : points[choosenNumbers.length - 1].toString()
               : "?",
           style: TextStyle(
             color: color,
             fontWeight: FontWeight.bold,
-            fontSize: 20,
+            fontSize: 16,
           ),
         ),
       ),
@@ -243,15 +281,15 @@ class _GamePageState extends State<GamePage> {
 
   Widget getMinPoints() {
     return Container(
-      width: 50,
-      height: 40,
+      width: 40,
+      height: 30,
       decoration: BoxDecoration(
         border: Border.all(
             color: darkMode ? Colors.white : Colors.black, width: 1.25),
-        borderRadius: BorderRadius.all(Radius.circular(5)),
+        borderRadius: const BorderRadius.all(Radius.circular(5)),
         color: darkMode
-            ? Color.fromARGB(225, 30, 30, 30)
-            : Color.fromARGB(225, 255, 255, 255),
+            ? const Color.fromARGB(225, 30, 30, 30)
+            : const Color.fromARGB(225, 255, 255, 255),
       ),
       child: Center(
         child: Text(
@@ -259,7 +297,7 @@ class _GamePageState extends State<GamePage> {
           style: TextStyle(
             color: darkMode ? Colors.white : Colors.black,
             fontWeight: FontWeight.bold,
-            fontSize: 20,
+            fontSize: 16,
           ),
         ),
       ),
@@ -273,10 +311,10 @@ class _GamePageState extends State<GamePage> {
       decoration: BoxDecoration(
         border: Border.all(
             color: darkMode ? Colors.white : Colors.black, width: 1.25),
-        borderRadius: BorderRadius.all(Radius.circular(5)),
+        borderRadius: const BorderRadius.all(Radius.circular(5)),
         color: darkMode
-            ? Color.fromARGB(225, 30, 30, 30)
-            : Color.fromARGB(225, 255, 255, 255),
+            ? const Color.fromARGB(225, 30, 30, 30)
+            : const Color.fromARGB(225, 255, 255, 255),
       ),
       child: Center(
         child: Text(
@@ -284,7 +322,7 @@ class _GamePageState extends State<GamePage> {
           style: TextStyle(
             color: darkMode ? Colors.white : Colors.black,
             fontWeight: FontWeight.bold,
-            fontSize: 20,
+            fontSize: 22,
           ),
         ),
       ),
@@ -300,8 +338,9 @@ class _GamePageState extends State<GamePage> {
       var blocked = false;
       var clicked = false;
 
-      if (choosenNumbers.where((element) => (element > i)).length > 0)
+      if (choosenNumbers.where((element) => (element > i)).isNotEmpty) {
         blocked = true;
+      }
 
       if (rowsLocked[rowNr - 1]) blocked = true;
 
@@ -313,11 +352,12 @@ class _GamePageState extends State<GamePage> {
             width: 50,
             height: 40,
             decoration: BoxDecoration(
-              border: Border.all(color: Color.fromARGB(255, 100, 100, 100)),
-              borderRadius: BorderRadius.all(Radius.circular(5)),
+              border:
+                  Border.all(color: const Color.fromARGB(255, 100, 100, 100)),
+              borderRadius: const BorderRadius.all(Radius.circular(5)),
               color: darkMode
-                  ? Color.fromARGB(225, 30, 30, 30)
-                  : Color.fromARGB(225, 255, 255, 255),
+                  ? const Color.fromARGB(225, 30, 30, 30)
+                  : const Color.fromARGB(225, 255, 255, 255),
             ),
             child: Center(
               child: Text(
@@ -328,7 +368,7 @@ class _GamePageState extends State<GamePage> {
                           ? Colors.white
                           : Colors.black
                       : blocked
-                          ? Color.fromARGB(255, 200, 200, 200)
+                          ? const Color.fromARGB(255, 200, 200, 200)
                           : rowsColors[rowNr - 1],
                   fontWeight: FontWeight.bold,
                   fontSize: 20,
@@ -351,6 +391,7 @@ class _GamePageState extends State<GamePage> {
                 }
 
                 choosenNumbers.remove(i);
+                playClickSound();
               } else {
                 // Check if row isn't locked
                 if (rowsLocked[rowNr - 1]) return;
@@ -364,8 +405,10 @@ class _GamePageState extends State<GamePage> {
 
                   if (rowsLocked.where((element) => element).length == 2) {
                     gameFinished();
+                    return;
                   }
                 }
+                playClickSound();
               }
 
               saveCurrentView();
@@ -382,11 +425,11 @@ class _GamePageState extends State<GamePage> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            border: Border.all(color: Color.fromARGB(255, 100, 100, 100)),
-            borderRadius: BorderRadius.all(Radius.circular(25)),
+            border: Border.all(color: const Color.fromARGB(255, 100, 100, 100)),
+            borderRadius: const BorderRadius.all(Radius.circular(25)),
             color: darkMode
-                ? Color.fromARGB(225, 30, 30, 30)
-                : Color.fromARGB(225, 255, 255, 255),
+                ? const Color.fromARGB(225, 30, 30, 30)
+                : const Color.fromARGB(225, 255, 255, 255),
           ),
           child: Center(
             child: Icon(
@@ -398,24 +441,27 @@ class _GamePageState extends State<GamePage> {
         ),
         onTap: () {
           setState(() {
-            if (rowsLocked[rowNr - 1])
+            if (rowsLocked[rowNr - 1]) {
               rowsLocked[rowNr - 1] = false;
-            else
+            } else {
               rowsLocked[rowNr - 1] = true;
+            }
 
             saveCurrentView();
           });
 
           if (rowsLocked.where((element) => element).length == 2) {
             gameFinished();
+            return;
           }
+          playClickSound();
         },
       ),
     );
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(10),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(color: rowsColors[rowNr - 1]),
       child: Row(
         children: numbers,
@@ -425,13 +471,12 @@ class _GamePageState extends State<GamePage> {
   }
 
   int getTotalPoints() {
-    var pointsRed = choosenRed.length == 0 ? 0 : points[choosenRed.length - 1];
+    var pointsRed = choosenRed.isEmpty ? 0 : points[choosenRed.length - 1];
     var pointsYellow =
-        choosenYellow.length == 0 ? 0 : points[choosenYellow.length - 1];
+        choosenYellow.isEmpty ? 0 : points[choosenYellow.length - 1];
     var pointsGreen =
-        choosenGreen.length == 0 ? 0 : points[choosenGreen.length - 1];
-    var pointsBlue =
-        choosenBlue.length == 0 ? 0 : points[choosenBlue.length - 1];
+        choosenGreen.isEmpty ? 0 : points[choosenGreen.length - 1];
+    var pointsBlue = choosenBlue.isEmpty ? 0 : points[choosenBlue.length - 1];
 
     var minPoints = missedThrows * 5;
 
@@ -439,6 +484,8 @@ class _GamePageState extends State<GamePage> {
   }
 
   void gameFinished() {
+    playWinSound();
+
     showDialog<String>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -465,13 +512,15 @@ class _GamePageState extends State<GamePage> {
 
   void resetGame() async {
     // Save highscore when enabled
-    if (highscore && (currentHighscore == null || currentHighscore < getTotalPoints())) {
+    if (highscore &&
+        (currentHighscore == null || currentHighscore! < getTotalPoints())) {
       final prefs = await SharedPreferences.getInstance();
-      prefs.setInt(SettingsPage.CURRENT_HIGHSCORE, getTotalPoints());
+      prefs.setInt(Settings.currentHighscore, getTotalPoints());
     }
 
     setState(() {
-      if (highscore) {
+      if (highscore &&
+          (currentHighscore == null || currentHighscore! < getTotalPoints())) {
         currentHighscore = getTotalPoints();
       }
 
@@ -495,11 +544,12 @@ class _GamePageState extends State<GamePage> {
     final prefs = await SharedPreferences.getInstance();
 
     setState(() {
-      showScore = prefs.getBool(SettingsPage.SHOW_CURRENT_POINTS) ?? true;
-      darkMode = prefs.getBool(SettingsPage.DARK_MODE) ?? false;
-      highscore = prefs.getBool(SettingsPage.HIGHSCORE) ?? true;
+      showScore = prefs.getBool(Settings.showCurrentPoints) ?? true;
+      darkMode = prefs.getBool(Settings.darkMode) ?? false;
+      highscore = prefs.getBool(Settings.highscore) ?? true;
+      sounds = prefs.getBool(Settings.sounds) ?? false;
 
-      currentHighscore = prefs.getInt(SettingsPage.CURRENT_HIGHSCORE);
+      currentHighscore = prefs.getInt(Settings.currentHighscore);
     });
   }
 
@@ -507,23 +557,24 @@ class _GamePageState extends State<GamePage> {
     final prefs = await SharedPreferences.getInstance();
 
     setState(() {
-      var memRed = prefs.getString(SettingsPage.CURRENT_SCORE_RED) ?? "[]";
-      var memYel = prefs.getString(SettingsPage.CURRENT_SCORE_YELLOW) ?? "[]";
-      var memGreen = prefs.getString(SettingsPage.CURRENT_SCORE_GREEN) ?? "[]";
-      var memBlue = prefs.getString(SettingsPage.CURRENT_SCORE_BLUE) ?? "[]";
+      var memRed = prefs.getString(Settings.currentScoreRed) ?? "[]";
+      var memYel = prefs.getString(Settings.currentScoreYellow) ?? "[]";
+      var memGreen = prefs.getString(Settings.currentScoreGreen) ?? "[]";
+      var memBlue = prefs.getString(Settings.currentScoreBlue) ?? "[]";
 
-      choosenRed = (JsonDecoder().convert(memRed) as List<dynamic>).cast<int>();
+      choosenRed =
+          (const JsonDecoder().convert(memRed) as List<dynamic>).cast<int>();
       choosenYellow =
-          (JsonDecoder().convert(memYel) as List<dynamic>).cast<int>();
+          (const JsonDecoder().convert(memYel) as List<dynamic>).cast<int>();
       choosenGreen =
-          (JsonDecoder().convert(memGreen) as List<dynamic>).cast<int>();
+          (const JsonDecoder().convert(memGreen) as List<dynamic>).cast<int>();
       choosenBlue =
-          (JsonDecoder().convert(memBlue) as List<dynamic>).cast<int>();
+          (const JsonDecoder().convert(memBlue) as List<dynamic>).cast<int>();
 
-      missedThrows = prefs.getInt(SettingsPage.CURRENT_MISSES) ?? 0;
+      missedThrows = prefs.getInt(Settings.currentMisses) ?? 0;
 
-      rowsLocked = (JsonDecoder().convert(
-              prefs.getString(SettingsPage.CURRENT_ROWS_LOCKED) ??
+      rowsLocked = (const JsonDecoder().convert(
+              prefs.getString(Settings.currentRowsLocked) ??
                   "[false, false, false, false]") as List<dynamic>)
           .cast<bool>();
     });
@@ -534,19 +585,37 @@ class _GamePageState extends State<GamePage> {
 
     // Reset choosen numbers
     prefs.setString(
-        SettingsPage.CURRENT_SCORE_RED, JsonEncoder().convert(choosenRed));
-    prefs.setString(SettingsPage.CURRENT_SCORE_YELLOW,
-        JsonEncoder().convert(choosenYellow));
+        Settings.currentScoreRed, const JsonEncoder().convert(choosenRed));
+    prefs.setString(Settings.currentScoreYellow,
+        const JsonEncoder().convert(choosenYellow));
     prefs.setString(
-        SettingsPage.CURRENT_SCORE_GREEN, JsonEncoder().convert(choosenGreen));
+        Settings.currentScoreGreen, const JsonEncoder().convert(choosenGreen));
     prefs.setString(
-        SettingsPage.CURRENT_SCORE_BLUE, JsonEncoder().convert(choosenBlue));
+        Settings.currentScoreBlue, const JsonEncoder().convert(choosenBlue));
 
     // Reset missed throws
-    prefs.setInt(SettingsPage.CURRENT_MISSES, missedThrows);
+    prefs.setInt(Settings.currentMisses, missedThrows);
 
     // Reset locked rows
     prefs.setString(
-        SettingsPage.CURRENT_ROWS_LOCKED, JsonEncoder().convert(rowsLocked));
+        Settings.currentRowsLocked, const JsonEncoder().convert(rowsLocked));
+  }
+
+  void playWinSound() {
+    if (!sounds) return;
+    AssetsAudioPlayer.newPlayer().open(
+      Audio("assets/audios/win.wav"),
+      autoStart: true,
+      showNotification: false,
+    );
+  }
+
+  void playClickSound() {
+    if (!sounds) return;
+    AssetsAudioPlayer.newPlayer().open(
+      Audio("assets/audios/click.wav"),
+      autoStart: true,
+      showNotification: false,
+    );
   }
 }
