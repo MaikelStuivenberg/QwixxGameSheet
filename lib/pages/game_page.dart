@@ -1,11 +1,13 @@
-import 'dart:convert';
-
 import 'package:assets_audio_player/assets_audio_player.dart';
 import 'package:flutter/material.dart';
-import 'package:qwixx_scoreboard/settings_page.dart';
+import 'package:qwixx_scoreboard/cards/level_1.dart';
+import 'package:qwixx_scoreboard/cards/level_2.dart';
+import 'package:qwixx_scoreboard/cards/level_3.dart';
+import 'package:qwixx_scoreboard/pages/settings_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'constants/settings.dart';
+import '../constants/settings.dart';
+import '../models/card_box.dart';
 
 class GamePage extends StatefulWidget {
   const GamePage({required Key key}) : super(key: key);
@@ -15,27 +17,14 @@ class GamePage extends StatefulWidget {
 }
 
 class _GamePageState extends State<GamePage> {
-  var points = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66, 78];
-
-  List<int> choosenRed = [];
-  List<int> choosenYellow = [];
-  List<int> choosenGreen = [];
-  List<int> choosenBlue = [];
+  var points = [0, 1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66, 78];
 
   int missedThrows = 0;
 
-  var redNumbers = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  var yellowNumbers = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  var greenNumbers = [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
-  var blueNumbers = [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
+  var lvl = "1";
+  var card = Level1Card().getCard();
 
   List<bool> rowsLocked = [false, false, false, false];
-  List<Color> rowsColors = [
-    Colors.red,
-    const Color.fromARGB(255, 245, 200, 66),
-    const Color.fromARGB(255, 0, 125, 0),
-    const Color.fromARGB(255, 41, 72, 143)
-  ];
 
   // Settings (with default values, async loaded)
   var showScore = true;
@@ -60,17 +49,15 @@ class _GamePageState extends State<GamePage> {
           : const Color.fromARGB(255, 240, 240, 240),
       body: Container(
           width: double.infinity,
-          margin: const EdgeInsets.fromLTRB(15, 5, 15, 5),
+          margin: const EdgeInsets.fromLTRB(20, 5, 20, 5),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               getHeader(),
               Column(
                 children: [
-                  getGameRow(1, redNumbers, choosenRed),
-                  getGameRow(2, yellowNumbers, choosenYellow),
-                  getGameRow(3, greenNumbers, choosenGreen),
-                  getGameRow(4, blueNumbers, choosenBlue)
+                  for (int i = 0; i < card.length; i++)
+                    getGameRow(i + 1, card[i]),
                 ],
               ),
               getBottom()
@@ -94,14 +81,14 @@ class _GamePageState extends State<GamePage> {
             children: (currentHighscore != null && highscore)
                 ? [
                     Container(
+                      padding: const EdgeInsets.only(right: 10),
                       child: Icon(
                         Icons.emoji_events,
                         color: darkMode ? Colors.white : Colors.black,
                       ),
-                      padding: const EdgeInsets.only(right: 10),
                     ),
                     Text(
-                      "Highscore: " + currentHighscore.toString(),
+                      "Highscore: $currentHighscore",
                       style: TextStyle(
                           fontSize: 16,
                           color: darkMode ? Colors.white : Colors.black),
@@ -132,8 +119,19 @@ class _GamePageState extends State<GamePage> {
                     MaterialPageRoute(
                         builder: (context) => SettingsPage(key: GlobalKey())),
                   ).then((value) => {
-                        if (value == 'reset') resetGame(),
+                        if (value!.isNotEmpty && value[0] != "resume")
+                          {
+                            setState(() {
+                              lvl = value[0];
+                              resetGame();
+                            }),
+                          },
+
+                        // Always load the new settings (can be changed without starting a new game)
                         loadSettings(),
+                        // loadSettings(),
+                        // if (value != 'cancel')
+                        //   resetGame(value),
                       });
                 },
               ),
@@ -146,16 +144,17 @@ class _GamePageState extends State<GamePage> {
 
   Widget getBottom() {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
           children: [
-            getPointsColumn(rowsColors[0], choosenRed),
+            getPointsColumn(0),
             getTextColumn("+"),
-            getPointsColumn(rowsColors[1], choosenYellow),
+            getPointsColumn(1),
             getTextColumn("+"),
-            getPointsColumn(rowsColors[2], choosenGreen),
+            getPointsColumn(2),
             getTextColumn("+"),
-            getPointsColumn(rowsColors[3], choosenBlue),
+            getPointsColumn(3),
             getTextColumn("-"),
             getMinPoints(),
             getTextColumn("="),
@@ -164,7 +163,6 @@ class _GamePageState extends State<GamePage> {
         ),
         getMissedThrowRow(),
       ],
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
     );
   }
 
@@ -251,12 +249,12 @@ class _GamePageState extends State<GamePage> {
     );
   }
 
-  Widget getPointsColumn(Color color, List<int> choosenNumbers) {
+  Widget getPointsColumn(int column) {
     return Container(
       width: 40,
       height: 30,
       decoration: BoxDecoration(
-        border: Border.all(color: color, width: 1.25),
+        border: Border.all(color: card[column].last.color.color, width: 1.25),
         borderRadius: const BorderRadius.all(Radius.circular(5)),
         color: darkMode
             ? const Color.fromARGB(225, 30, 30, 30)
@@ -264,13 +262,9 @@ class _GamePageState extends State<GamePage> {
       ),
       child: Center(
         child: Text(
-          showScore
-              ? choosenNumbers.isEmpty
-                  ? "0"
-                  : points[choosenNumbers.length - 1].toString()
-              : "?",
+          showScore ? getColumnPoints(column).toString() : "?",
           style: TextStyle(
-            color: color,
+            color: card[column].last.color.color,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
@@ -306,7 +300,7 @@ class _GamePageState extends State<GamePage> {
 
   Widget getTotalPointsColumn() {
     return Container(
-      width: 50,
+      width: 75,
       height: 40,
       decoration: BoxDecoration(
         border: Border.all(
@@ -329,154 +323,192 @@ class _GamePageState extends State<GamePage> {
     );
   }
 
-  Container getGameRow(
-      int rowNr, List<int> numberList, List<int> choosenNumbers) {
+  SizedBox getGameRow(int rowNr, List<CardBox> columnList) {
     List<Widget> numbers = [];
 
     // Add the nummbers 2 till 12
     for (var i = 0; i < 11; i++) {
       var blocked = false;
-      var clicked = false;
+      var clicked = columnList[i].checked;
 
-      if (choosenNumbers.where((element) => (element > i)).isNotEmpty) {
-        blocked = true;
+      for (var column in columnList.reversed) {
+        if (column == columnList[i]) {
+          break;
+        }
+
+        if (column.checked) {
+          blocked = true;
+          break;
+        }
       }
 
       if (rowsLocked[rowNr - 1]) blocked = true;
 
-      if (choosenNumbers.contains(i)) clicked = true;
-
       numbers.add(
-        GestureDetector(
+        Expanded(
           child: Container(
-            width: 50,
-            height: 40,
-            decoration: BoxDecoration(
-              border:
-                  Border.all(color: const Color.fromARGB(255, 100, 100, 100)),
-              borderRadius: const BorderRadius.all(Radius.circular(5)),
-              color: darkMode
-                  ? const Color.fromARGB(225, 30, 30, 30)
-                  : const Color.fromARGB(225, 255, 255, 255),
-            ),
-            child: Center(
-              child: Text(
-                clicked ? "X" : numberList[i].toString(),
-                style: TextStyle(
-                  color: clicked
-                      ? darkMode
-                          ? Colors.white
-                          : Colors.black
-                      : blocked
-                          ? const Color.fromARGB(255, 200, 200, 200)
-                          : rowsColors[rowNr - 1],
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: columnList[i].color.color),
+            width: double.infinity,
+            child: GestureDetector(
+              child: Column(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                          color: const Color.fromARGB(255, 100, 100, 100)),
+                      borderRadius: const BorderRadius.all(Radius.circular(5)),
+                      color: darkMode
+                          ? const Color.fromARGB(225, 30, 30, 30)
+                          : const Color.fromARGB(225, 255, 255, 255),
+                    ),
+                    child: Center(
+                      child: Text(
+                        clicked ? "X" : columnList[i].number.toString(),
+                        style: TextStyle(
+                          color: clicked
+                              ? darkMode
+                                  ? Colors.white
+                                  : Colors.black
+                              : blocked
+                                  ? const Color.fromARGB(255, 200, 200, 200)
+                                  : columnList[i].color.color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ),
+                  )
+                ],
               ),
+              onTap: () {
+                if (blocked && i < 10) return;
+
+                // When last item (pos 10), check if possible
+                if (i >= 10 &&
+                    columnList.where((element) => element.checked).length < 5) {
+                  return;
+                }
+
+                setState(() {
+                  playClickSound();
+                  // columnList[i].checked = !columnList[i].checked;
+
+                  if (columnList[i].checked) {
+                    // When last item, also unlock row
+                    if (i == 10) {
+                      rowsLocked[rowNr - 1] = false;
+                    }
+
+                    columnList[i].checked = !columnList[i].checked;
+                    playClickSound();
+                  } else {
+                    // Check if row isn't locked
+                    if (rowsLocked[rowNr - 1]) return;
+
+                    columnList[i].checked = !columnList[i].checked;
+
+                    // When last item, also lock row
+                    if (i == 10) {
+                      rowsLocked[rowNr - 1] = true;
+
+                      if (rowsLocked.where((element) => element).length == 2) {
+                        gameFinished();
+                        return;
+                      }
+                    }
+                    playClickSound();
+                  }
+
+                  saveCurrentView();
+                });
+              },
             ),
           ),
-          onTap: () {
-            if (blocked && i < 10) return;
-
-            // When last item (pos 10), check if possible
-            if (i >= 10 && choosenNumbers.length < 5) return;
-
-            setState(() {
-              if (choosenNumbers.contains(i)) {
-                // When last item, also unlock row
-                if (i == 10) {
-                  choosenNumbers.remove(i + 1);
-                  rowsLocked[rowNr - 1] = false;
-                }
-
-                choosenNumbers.remove(i);
-                playClickSound();
-              } else {
-                // Check if row isn't locked
-                if (rowsLocked[rowNr - 1]) return;
-
-                choosenNumbers.add(i);
-
-                // When last item, also lock row
-                if (i == 10) {
-                  choosenNumbers.add(i + 1);
-                  rowsLocked[rowNr - 1] = true;
-
-                  if (rowsLocked.where((element) => element).length == 2) {
-                    gameFinished();
-                    return;
-                  }
-                }
-                playClickSound();
-              }
-
-              saveCurrentView();
-            });
-          },
         ),
       );
     }
 
     // Add extra column when people want to close/lock the row
     numbers.add(
-      GestureDetector(
+      Expanded(
         child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color.fromARGB(255, 100, 100, 100)),
-            borderRadius: const BorderRadius.all(Radius.circular(25)),
-            color: darkMode
-                ? const Color.fromARGB(225, 30, 30, 30)
-                : const Color.fromARGB(225, 255, 255, 255),
-          ),
-          child: Center(
-            child: Icon(
-              rowsLocked[rowNr - 1] ? Icons.lock : Icons.lock_open,
-              color: rowsColors[rowNr - 1],
-              size: 20,
-            ),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: columnList.last.color.color),
+          width: double.infinity,
+          child: GestureDetector(
+            child: Column(children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: const Color.fromARGB(255, 100, 100, 100)),
+                  borderRadius: const BorderRadius.all(Radius.circular(25)),
+                  color: darkMode
+                      ? const Color.fromARGB(225, 30, 30, 30)
+                      : const Color.fromARGB(225, 255, 255, 255),
+                ),
+                child: Center(
+                  child: Icon(
+                    rowsLocked[rowNr - 1] ? Icons.lock : Icons.lock_open,
+                    color: columnList.last.color.color,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ]),
+            onTap: () {
+              setState(() {
+                if (rowsLocked[rowNr - 1]) {
+                  rowsLocked[rowNr - 1] = false;
+                } else {
+                  rowsLocked[rowNr - 1] = true;
+                }
+
+                saveCurrentView();
+              });
+
+              if (rowsLocked.where((element) => element).length == 2) {
+                gameFinished();
+                return;
+              }
+              playClickSound();
+            },
           ),
         ),
-        onTap: () {
-          setState(() {
-            if (rowsLocked[rowNr - 1]) {
-              rowsLocked[rowNr - 1] = false;
-            } else {
-              rowsLocked[rowNr - 1] = true;
-            }
-
-            saveCurrentView();
-          });
-
-          if (rowsLocked.where((element) => element).length == 2) {
-            gameFinished();
-            return;
-          }
-          playClickSound();
-        },
       ),
     );
 
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: rowsColors[rowNr - 1]),
       child: Row(
-        children: numbers,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: numbers,
       ),
     );
   }
 
+  int getColumnPoints(int column) {
+    var columnPoints = card[column]
+        .where((e) => e.checked)
+        .map((e) => 1)
+        .fold<int>(0, (previousValue, element) => previousValue + element);
+
+    if (card[column].last.checked) {
+      columnPoints++;
+    }
+
+    return points[columnPoints];
+  }
+
   int getTotalPoints() {
-    var pointsRed = choosenRed.isEmpty ? 0 : points[choosenRed.length - 1];
-    var pointsYellow =
-        choosenYellow.isEmpty ? 0 : points[choosenYellow.length - 1];
-    var pointsGreen =
-        choosenGreen.isEmpty ? 0 : points[choosenGreen.length - 1];
-    var pointsBlue = choosenBlue.isEmpty ? 0 : points[choosenBlue.length - 1];
+    var pointsRed = getColumnPoints(0);
+    var pointsYellow = getColumnPoints(1);
+    var pointsGreen = getColumnPoints(2);
+    var pointsBlue = getColumnPoints(3);
 
     var minPoints = missedThrows * 5;
 
@@ -490,9 +522,7 @@ class _GamePageState extends State<GamePage> {
       context: context,
       builder: (BuildContext context) => AlertDialog(
         title: const Text('Finished!'),
-        content: Text('You finished the game with ' +
-            getTotalPoints().toString() +
-            ' points!'),
+        content: Text('You finished the game with ${getTotalPoints()} points!'),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(context, 'Cancel'),
@@ -524,11 +554,16 @@ class _GamePageState extends State<GamePage> {
         currentHighscore = getTotalPoints();
       }
 
-      // Reset choosen numbers
-      choosenRed = [];
-      choosenYellow = [];
-      choosenGreen = [];
-      choosenBlue = [];
+      // Reset card
+      if (lvl == "1") {
+        card = Level1Card().getCard();
+      }
+      if (lvl == "2") {
+        card = Level2Card().getCard();
+      }
+      if (lvl == "3") {
+        card = Level3Card().getCard();
+      }
 
       // Reset missed throws
       missedThrows = 0;
@@ -554,51 +589,51 @@ class _GamePageState extends State<GamePage> {
   }
 
   void loadGame() async {
-    final prefs = await SharedPreferences.getInstance();
+    // final prefs = await SharedPreferences.getInstance();
 
-    setState(() {
-      var memRed = prefs.getString(Settings.currentScoreRed) ?? "[]";
-      var memYel = prefs.getString(Settings.currentScoreYellow) ?? "[]";
-      var memGreen = prefs.getString(Settings.currentScoreGreen) ?? "[]";
-      var memBlue = prefs.getString(Settings.currentScoreBlue) ?? "[]";
+    // setState(() {
+    //   var memRed = prefs.getString(Settings.currentScoreRed) ?? "[]";
+    //   var memYel = prefs.getString(Settings.currentScoreYellow) ?? "[]";
+    //   var memGreen = prefs.getString(Settings.currentScoreGreen) ?? "[]";
+    //   var memBlue = prefs.getString(Settings.currentScoreBlue) ?? "[]";
 
-      choosenRed =
-          (const JsonDecoder().convert(memRed) as List<dynamic>).cast<int>();
-      choosenYellow =
-          (const JsonDecoder().convert(memYel) as List<dynamic>).cast<int>();
-      choosenGreen =
-          (const JsonDecoder().convert(memGreen) as List<dynamic>).cast<int>();
-      choosenBlue =
-          (const JsonDecoder().convert(memBlue) as List<dynamic>).cast<int>();
+    //   choosenRed =
+    //       (const JsonDecoder().convert(memRed) as List<dynamic>).cast<int>();
+    //   choosenYellow =
+    //       (const JsonDecoder().convert(memYel) as List<dynamic>).cast<int>();
+    //   choosenGreen =
+    //       (const JsonDecoder().convert(memGreen) as List<dynamic>).cast<int>();
+    //   choosenBlue =
+    //       (const JsonDecoder().convert(memBlue) as List<dynamic>).cast<int>();
 
-      missedThrows = prefs.getInt(Settings.currentMisses) ?? 0;
+    //   missedThrows = prefs.getInt(Settings.currentMisses) ?? 0;
 
-      rowsLocked = (const JsonDecoder().convert(
-              prefs.getString(Settings.currentRowsLocked) ??
-                  "[false, false, false, false]") as List<dynamic>)
-          .cast<bool>();
-    });
+    //   rowsLocked = (const JsonDecoder().convert(
+    //           prefs.getString(Settings.currentRowsLocked) ??
+    //               "[false, false, false, false]") as List<dynamic>)
+    //       .cast<bool>();
+    // });
   }
 
   void saveCurrentView() async {
-    final prefs = await SharedPreferences.getInstance();
+    // final prefs = await SharedPreferences.getInstance();
 
-    // Reset choosen numbers
-    prefs.setString(
-        Settings.currentScoreRed, const JsonEncoder().convert(choosenRed));
-    prefs.setString(Settings.currentScoreYellow,
-        const JsonEncoder().convert(choosenYellow));
-    prefs.setString(
-        Settings.currentScoreGreen, const JsonEncoder().convert(choosenGreen));
-    prefs.setString(
-        Settings.currentScoreBlue, const JsonEncoder().convert(choosenBlue));
+    // // Reset choosen numbers
+    // prefs.setString(
+    //     Settings.currentScoreRed, const JsonEncoder().convert(choosenRed));
+    // prefs.setString(Settings.currentScoreYellow,
+    //     const JsonEncoder().convert(choosenYellow));
+    // prefs.setString(
+    //     Settings.currentScoreGreen, const JsonEncoder().convert(choosenGreen));
+    // prefs.setString(
+    //     Settings.currentScoreBlue, const JsonEncoder().convert(choosenBlue));
 
-    // Reset missed throws
-    prefs.setInt(Settings.currentMisses, missedThrows);
+    // // Reset missed throws
+    // prefs.setInt(Settings.currentMisses, missedThrows);
 
-    // Reset locked rows
-    prefs.setString(
-        Settings.currentRowsLocked, const JsonEncoder().convert(rowsLocked));
+    // // Reset locked rows
+    // prefs.setString(
+    //     Settings.currentRowsLocked, const JsonEncoder().convert(rowsLocked));
   }
 
   void playWinSound() {

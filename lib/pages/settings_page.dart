@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:qwixx_scoreboard/constants/settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'choose_card.dart';
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({required Key key}) : super(key: key);
 
@@ -113,7 +115,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   width: 150,
                   child: OutlinedButton(
                     onPressed: () {
-                      Navigator.pop(context, 'reset');
+                      Navigator.push<List<String>>(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                ChooseCardPage(key: GlobalKey())),
+                      ).then((value) => {
+                            if (value![0] != "Cancel")
+                              Navigator.pop(context, value)
+                          });
                     },
                     child: const Text('New Game'),
                   ),

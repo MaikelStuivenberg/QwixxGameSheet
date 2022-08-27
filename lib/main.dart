@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:wakelock/wakelock.dart';
 
-import 'game_page.dart';
+import 'pages/game_page.dart';
 
 void main() {
   runApp(QwixxGameSheet());
