@@ -6,7 +6,9 @@ import 'package:qwixx_scoreboard/cards/level_3.dart';
 import 'package:qwixx_scoreboard/pages/settings_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../constants/box_colors.dart';
 import '../constants/settings.dart';
+import '../models/box_color.dart';
 import '../models/card_box.dart';
 
 class GamePage extends StatefulWidget {
@@ -148,13 +150,13 @@ class _GamePageState extends State<GamePage> {
       children: [
         Row(
           children: [
-            getPointsColumn(0),
+            getPointsBoxByColor(BoxColors.redBox),
             getTextColumn("+"),
-            getPointsColumn(1),
+            getPointsBoxByColor(BoxColors.yellowBox),
             getTextColumn("+"),
-            getPointsColumn(2),
+            getPointsBoxByColor(BoxColors.greenBox),
             getTextColumn("+"),
-            getPointsColumn(3),
+            getPointsBoxByColor(BoxColors.blueBox),
             getTextColumn("-"),
             getMinPoints(),
             getTextColumn("="),
@@ -249,12 +251,12 @@ class _GamePageState extends State<GamePage> {
     );
   }
 
-  Widget getPointsColumn(int column) {
+  Widget getPointsBoxByColor(BoxColor color) {
     return Container(
       width: 40,
       height: 30,
       decoration: BoxDecoration(
-        border: Border.all(color: card[column].last.color.color, width: 1.25),
+        border: Border.all(color: color.color, width: 1.25),
         borderRadius: const BorderRadius.all(Radius.circular(5)),
         color: darkMode
             ? const Color.fromARGB(225, 30, 30, 30)
@@ -262,9 +264,9 @@ class _GamePageState extends State<GamePage> {
       ),
       child: Center(
         child: Text(
-          showScore ? getColumnPoints(column).toString() : "?",
+          showScore ? getPointsByColor(color).toString() : "?",
           style: TextStyle(
-            color: card[column].last.color.color,
+            color: color.color,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
@@ -491,24 +493,27 @@ class _GamePageState extends State<GamePage> {
     );
   }
 
-  int getColumnPoints(int column) {
-    var columnPoints = card[column]
-        .where((e) => e.checked)
+  int getPointsByColor(BoxColor color) {
+    var columnPoints = 0;
+    
+    for (var row in card) {
+      columnPoints += row.where((e) => e.color == color && e.checked)
         .map((e) => 1)
         .fold<int>(0, (previousValue, element) => previousValue + element);
 
-    if (card[column].last.checked) {
-      columnPoints++;
+      if(row.last.color == color && row.last.checked) {
+        columnPoints++;
+      }
     }
 
     return points[columnPoints];
   }
 
   int getTotalPoints() {
-    var pointsRed = getColumnPoints(0);
-    var pointsYellow = getColumnPoints(1);
-    var pointsGreen = getColumnPoints(2);
-    var pointsBlue = getColumnPoints(3);
+    var pointsRed = getPointsByColor(BoxColors.redBox);
+    var pointsYellow = getPointsByColor(BoxColors.yellowBox);
+    var pointsGreen = getPointsByColor(BoxColors.greenBox);
+    var pointsBlue = getPointsByColor(BoxColors.blueBox);
 
     var minPoints = missedThrows * 5;
 
