@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qwixx_scoreboard/models/box_color.dart';
+import 'package:qwixx_gamesheet/models/box_color.dart';
 
 class BoxColors {
   BoxColors._();

@@ -1,9 +1,10 @@
 import 'package:assets_audio_player/assets_audio_player.dart';
 import 'package:flutter/material.dart';
-import 'package:qwixx_scoreboard/cards/level_1.dart';
-import 'package:qwixx_scoreboard/cards/level_2.dart';
-import 'package:qwixx_scoreboard/cards/level_3.dart';
-import 'package:qwixx_scoreboard/pages/settings_page.dart';
+import 'package:in_app_review/in_app_review.dart';
+import 'package:qwixx_gamesheet/cards/level_1.dart';
+import 'package:qwixx_gamesheet/cards/level_2.dart';
+import 'package:qwixx_gamesheet/cards/level_3.dart';
+import 'package:qwixx_gamesheet/pages/settings_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/box_colors.dart';
@@ -12,13 +13,12 @@ import '../models/box_color.dart';
 import '../models/card_box.dart';
 
 class GamePage extends StatefulWidget {
-  const GamePage({required Key key}) : super(key: key);
-
+  const GamePage({super.key});
   @override
-  _GamePageState createState() => _GamePageState();
+  GamePageState createState() => GamePageState();
 }
 
-class _GamePageState extends State<GamePage> {
+class GamePageState extends State<GamePage> {
   var points = [0, 1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66, 78];
 
   int missedThrows = 0;
@@ -49,9 +49,10 @@ class _GamePageState extends State<GamePage> {
       backgroundColor: darkMode
           ? const Color.fromARGB(255, 30, 30, 30)
           : const Color.fromARGB(255, 240, 240, 240),
-      body: Container(
+      body: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(20, 5, 20, 5),
+        child: SizedBox(
           width: double.infinity,
-          margin: const EdgeInsets.fromLTRB(20, 5, 20, 5),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -64,7 +65,9 @@ class _GamePageState extends State<GamePage> {
               ),
               getBottom()
             ],
-          )),
+          ),
+        ),
+      ),
     );
   }
 
@@ -105,36 +108,38 @@ class _GamePageState extends State<GamePage> {
             children: [
               const Spacer(),
               ElevatedButton(
-                child: Row(
+                child: const Row(
                   mainAxisAlignment: MainAxisAlignment.end,
-                  children: const [
-                    Icon(Icons.settings, color: Colors.white),
+                  children: [
+                    Icon(Icons.settings),
+                    SizedBox(width: 4),
                     Text(
                       "Settings",
-                      style: TextStyle(fontSize: 16, color: Colors.white),
+                      style: TextStyle(fontSize: 16),
                     ),
                   ],
                 ),
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => SettingsPage(key: GlobalKey())),
-                  ).then((value) => {
-                        if (value!.isNotEmpty && value[0] != "resume")
-                          {
-                            setState(() {
-                              lvl = value[0];
-                              resetGame();
-                            }),
-                          },
+                  Navigator.of(context)
+                      .push(
+                        MaterialPageRoute(
+                            builder: (context) => const SettingsPage()),
+                      )
+                      .then((value) => {
+                            if (value!.isNotEmpty && value[0] != "resume")
+                              {
+                                setState(() {
+                                  lvl = value[0];
+                                  resetGame();
+                                }),
+                              },
 
-                        // Always load the new settings (can be changed without starting a new game)
-                        loadSettings(),
-                        // loadSettings(),
-                        // if (value != 'cancel')
-                        //   resetGame(value),
-                      });
+                            // Always load the new settings (can be changed without starting a new game)
+                            loadSettings(),
+                            // loadSettings(),
+                            // if (value != 'cancel')
+                            //   resetGame(value),
+                          });
                 },
               ),
             ],
@@ -495,13 +500,14 @@ class _GamePageState extends State<GamePage> {
 
   int getPointsByColor(BoxColor color) {
     var columnPoints = 0;
-    
-    for (var row in card) {
-      columnPoints += row.where((e) => e.color == color && e.checked)
-        .map((e) => 1)
-        .fold<int>(0, (previousValue, element) => previousValue + element);
 
-      if(row.last.color == color && row.last.checked) {
+    for (var row in card) {
+      columnPoints += row
+          .where((e) => e.color == color && e.checked)
+          .map((e) => 1)
+          .fold<int>(0, (previousValue, element) => previousValue + element);
+
+      if (row.last.color == color && row.last.checked) {
         columnPoints++;
       }
     }
@@ -520,7 +526,23 @@ class _GamePageState extends State<GamePage> {
     return pointsRed + pointsYellow + pointsGreen + pointsBlue - minPoints;
   }
 
+  void updateAmountOfPlayedGames() async {
+    final prefs = await SharedPreferences.getInstance();
+    var amountOfPlayedGames = prefs.getInt(Settings.amountOfPlayedGames) ?? 0;
+    amountOfPlayedGames++;
+    prefs.setInt(Settings.amountOfPlayedGames, amountOfPlayedGames);
+  }
+
+  Future<bool> isSecondGame() async {
+    var amountOfPlayedGames = (await SharedPreferences.getInstance())
+        .getInt(Settings.amountOfPlayedGames);
+
+    return amountOfPlayedGames != null && amountOfPlayedGames == 2;
+  }
+
   void gameFinished() {
+    updateAmountOfPlayedGames();
+
     playWinSound();
 
     showDialog<String>(
@@ -530,13 +552,30 @@ class _GamePageState extends State<GamePage> {
         content: Text('You finished the game with ${getTotalPoints()} points!'),
         actions: <Widget>[
           TextButton(
-            onPressed: () => Navigator.pop(context, 'Cancel'),
+            onPressed: () async {
+              if (await InAppReview.instance.isAvailable() &&
+                  await isSecondGame()) {
+                InAppReview.instance.requestReview();
+              }
+
+              if (!context.mounted) return;
+
+              Navigator.pop(context, "Cancel");
+            },
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => {
-              resetGame(),
-              Navigator.pop(context, 'Ok'),
+            onPressed: () async {
+              resetGame();
+
+              if (await InAppReview.instance.isAvailable() &&
+                  await isSecondGame()) {
+                InAppReview.instance.requestReview();
+              }
+
+              if (!context.mounted) return;
+
+              Navigator.pop(context, 'Ok');
             },
             child: const Text('Start new game'),
           ),

@@ -5,6 +5,7 @@ class Settings {
   static const darkMode = "dark_mode";
   static const highscore = "highscore";
   static const sounds = "sounds";
+  static const String amountOfPlayedGames = "amount_of_played_games";
 
   // Not settings, but needed a place to store some variables
   static const currentHighscore = "current_highscore";

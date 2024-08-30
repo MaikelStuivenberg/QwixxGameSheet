@@ -1,0 +1,39 @@
+name: Android Build & Release
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build-ios: 
+    name: Build Flutter Android
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1.118.0
+        with: 
+          ruby-version: '3.0'
+          bundler-cache: true
+        
+      - name: Auth codesigning
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: "${{ secrets.SSH_PRIVATE_KEY }}"
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'         
+          
+      - name: Run Fastlane
+        uses: maierj/fastlane-action@v2.3.0
+        with:
+          lane: android build_and_deploy
+          subdirectory: android
+        env:
+          GOOGLE_PLAY_JSON_KEY_DATA: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}

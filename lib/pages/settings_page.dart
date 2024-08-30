@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:qwixx_scoreboard/constants/settings.dart';
+import 'package:qwixx_gamesheet/constants/settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'choose_card.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({required Key key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
-  _SettingsPageState createState() => _SettingsPageState();
+  SettingsPageState createState() => SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class SettingsPageState extends State<SettingsPage> {
   bool _showCurrentPoints = true;
   bool _useDarkMode = false;
   bool _useHighscore = true;
@@ -26,8 +26,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void loadCurrentSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _showCurrentPoints =
-          prefs.getBool(Settings.showCurrentPoints) ?? true;
+      _showCurrentPoints = prefs.getBool(Settings.showCurrentPoints) ?? true;
       _useDarkMode = prefs.getBool(Settings.darkMode) ?? false;
       _useHighscore = prefs.getBool(Settings.highscore) ?? true;
       _useSounds = prefs.getBool(Settings.sounds) ?? false;
@@ -44,60 +43,66 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           children: [
             // SHOW CURRENT POINTS
-            SwitchListTile(
-                value: _showCurrentPoints,
-                title: const Text("Show current points"),
-                secondary: const Icon(Icons.score_outlined),
-                onChanged: (val) async {
-                  setState(() {
-                    _showCurrentPoints = val;
-                  });
+            Expanded(
+              child: Column(
+                children: [
+                  SwitchListTile(
+                      value: _showCurrentPoints,
+                      title: const Text("Show current points"),
+                      secondary: const Icon(Icons.score_outlined),
+                      onChanged: (val) async {
+                        setState(() {
+                          _showCurrentPoints = val;
+                        });
 
-                  final prefs = await SharedPreferences.getInstance();
-                  prefs.setBool(Settings.showCurrentPoints, val);
-                }),
+                        final prefs = await SharedPreferences.getInstance();
+                        prefs.setBool(Settings.showCurrentPoints, val);
+                      }),
 
-            // DARK MODE
-            SwitchListTile(
-                value: _useDarkMode,
-                title: const Text("Dark mode"),
-                secondary: const Icon(Icons.nightlight_round),
-                onChanged: (val) async {
-                  setState(() {
-                    _useDarkMode = val;
-                  });
+                  // DARK MODE
+                  SwitchListTile(
+                      value: _useDarkMode,
+                      title: const Text("Dark mode"),
+                      secondary: const Icon(Icons.nightlight_round),
+                      onChanged: (val) async {
+                        setState(() {
+                          _useDarkMode = val;
+                        });
 
-                  final prefs = await SharedPreferences.getInstance();
-                  prefs.setBool(Settings.darkMode, val);
-                }),
+                        final prefs = await SharedPreferences.getInstance();
+                        prefs.setBool(Settings.darkMode, val);
+                      }),
 
-            // HIGHSCORES
-            SwitchListTile(
-                value: _useHighscore,
-                title: const Text("Show/Save highscore"),
-                secondary: const Icon(Icons.emoji_events),
-                onChanged: (val) async {
-                  setState(() {
-                    _useHighscore = val;
-                  });
+                  // HIGHSCORES
+                  SwitchListTile(
+                      value: _useHighscore,
+                      title: const Text("Show/Save highscore"),
+                      secondary: const Icon(Icons.emoji_events),
+                      onChanged: (val) async {
+                        setState(() {
+                          _useHighscore = val;
+                        });
 
-                  final prefs = await SharedPreferences.getInstance();
-                  prefs.setBool(Settings.highscore, val);
-                }),
+                        final prefs = await SharedPreferences.getInstance();
+                        prefs.setBool(Settings.highscore, val);
+                      }),
 
-            // SOUNDS
-            SwitchListTile(
-                value: _useSounds,
-                title: const Text("Use sounds"),
-                secondary: const Icon(Icons.speaker),
-                onChanged: (val) async {
-                  setState(() {
-                    _useSounds = val;
-                  });
+                  // SOUNDS
+                  SwitchListTile(
+                      value: _useSounds,
+                      title: const Text("Use sounds"),
+                      secondary: const Icon(Icons.speaker),
+                      onChanged: (val) async {
+                        setState(() {
+                          _useSounds = val;
+                        });
 
-                  final prefs = await SharedPreferences.getInstance();
-                  prefs.setBool(Settings.sounds, val);
-                }),
+                        final prefs = await SharedPreferences.getInstance();
+                        prefs.setBool(Settings.sounds, val);
+                      }),
+                ],
+              ),
+            ),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -115,22 +120,25 @@ class _SettingsPageState extends State<SettingsPage> {
                   width: 150,
                   child: OutlinedButton(
                     onPressed: () {
-                      Navigator.push<List<String>>(
-                        context,
+                      Navigator.of(context)
+                          .push<List<String>>(
                         MaterialPageRoute(
                             builder: (context) =>
                                 ChooseCardPage(key: GlobalKey())),
-                      ).then((value) => {
-                            if (value![0] != "Cancel")
-                              Navigator.pop(context, value)
-                          });
+                      )
+                          .then((value) {
+                        if (!context.mounted) return;
+
+                        if (value![0] != "Cancel") {
+                          Navigator.pop(context, value);
+                        }
+                      });
                     },
                     child: const Text('New Game'),
                   ),
                 ),
               ],
             ),
-            
           ],
         ),
       ),

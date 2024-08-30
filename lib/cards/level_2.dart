@@ -1,6 +1,6 @@
 
-import 'package:qwixx_scoreboard/constants/box_colors.dart';
-import 'package:qwixx_scoreboard/models/card_box.dart';
+import 'package:qwixx_gamesheet/constants/box_colors.dart';
+import 'package:qwixx_gamesheet/models/card_box.dart';
 
 class Level2Card {
 

@@ -1,5 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="nl.maikelstuivenberg.qwixx_gamesheet">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
    <application
         android:label="Qwixx"
         android:icon="@mipmap/ic_launcher">
