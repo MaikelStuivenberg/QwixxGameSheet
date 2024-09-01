@@ -54,15 +54,17 @@ class GamePageState extends State<GamePage> {
         child: SizedBox(
           width: double.infinity,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               getHeader(),
+              const SizedBox(height: 12),
               Column(
                 children: [
                   for (int i = 0; i < card.length; i++)
                     getGameRow(i + 1, card[i]),
                 ],
               ),
+              const SizedBox(height: 12),
               getBottom()
             ],
           ),
